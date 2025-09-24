@@ -1,0 +1,136 @@
+version: '3'
+
+vars:
+  DOCKER_COMPOSE_FILE: docker-compose.yml
+  DB_CONTAINER: backend-db-1
+  BACKEND_CONTAINER: backend-backend-1
+
+tasks:
+  # Setup and Installation
+  setup:
+    desc: "Initial project setup"
+    cmds:
+      - echo "Setting up AnkiAI Backend..."
+      - task: install-deps
+      - task: env-setup
+      - task: generate-api
+      - echo "Setup complete! Run 'task dev' to start development."
+
+  generate-api:
+    desc: "Generate API code from OpenAPI schema"
+    cmds:
+      - echo "Generating API code from OpenAPI schema..."
+      - docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli generate -i /local/openapi.yaml -g python-fastapi -o /local/generated --additional-properties=packageName=ankiai_generated
+      - echo "API code generation complete"
+
+  install-deps:
+    desc: "Install Python dependencies"
+    cmds:
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+
+  env-setup:
+    desc: "Create environment configuration"
+    cmds:
+      - cp .env.example .env
+      - echo "Please update .env file with your configuration"
+    status:
+      - test -f .env
+
+  # Development Commands
+  dev:
+    desc: "Start development environment"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} up --build
+
+  dev-detached:
+    desc: "Start development environment in background"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} up -d --build
+
+  stop:
+    desc: "Stop all services"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} down
+
+  restart:
+    desc: "Restart all services"
+    cmds:
+      - task: stop
+      - task: dev-detached
+
+
+  # Application Commands
+  shell:
+    desc: "Access backend container shell"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend /bin/bash
+
+  logs:
+    desc: "Show all service logs"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} logs -f
+
+  logs-backend:
+    desc: "Show backend service logs"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} logs -f backend
+
+
+  # Code Quality Commands
+  format:
+    desc: "Format code with black and isort"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend black app/
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend isort app/
+
+  lint:
+    desc: "Run linting with flake8 and mypy"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend flake8 app/
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend mypy app/
+
+  test:
+    desc: "Run tests with pytest"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend pytest tests/ -v
+
+  test-coverage:
+    desc: "Run tests with coverage report"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend pytest tests/ --cov=app --cov-report=html
+
+  # Utility Commands
+  clean:
+    desc: "Clean up Docker resources"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} down -v --remove-orphans
+      - docker system prune -f
+      - docker volume prune -f
+
+  status:
+    desc: "Show service status"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} ps
+
+  build:
+    desc: "Build services without starting"
+    cmds:
+      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} build
+
+  # Production Commands
+  prod-build:
+    desc: "Build production image"
+    cmds:
+      - docker build -t ankiai-backend:latest .
+
+  prod-run:
+    desc: "Run production container"
+    cmds:
+      - docker run -d --name ankiai-backend -p 8000:8000 ankiai-backend:latest
+
+  # Health Checks
+  health:
+    desc: "Check service health"
+    cmds:
+      - curl -f http://localhost:8000/health || echo "Backend service not responding"

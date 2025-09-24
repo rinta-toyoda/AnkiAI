@@ -1,0 +1,275 @@
+openapi: 3.0.0
+info:
+  title: AnkiAI API
+  description: API for generating Anki flashcards with text and media content
+  version: 1.0.0
+  contact:
+    name: AnkiAI Support
+    email: support@ankiai.com
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+
+paths:
+  /generateText:
+    post:
+      summary: Generate flashcard content from text prompt
+      description: Generate vocabulary flashcards with audio from a text prompt
+      operationId: generateText
+      tags:
+        - content-generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateTextRequest'
+            example:
+              prompt: "HSK2向けに『替・觉得・认为』。各語義ごとに短義＋例文を。"
+              targetLang: "zh-CN"
+              withTTS: true
+              maxTerms: 10
+              maxMeaningsPerTerm: 3
+      responses:
+        '200':
+          description: Successfully generated flashcard content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+        '400':
+          description: Bad request - invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /generateMedia:
+    post:
+      summary: Generate flashcard content from text prompt and images
+      description: Generate vocabulary flashcards with audio from a text prompt and uploaded images
+      operationId: generateMedia
+      tags:
+        - content-generation
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GenerateMediaRequest'
+      responses:
+        '200':
+          description: Successfully generated flashcard content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+        '400':
+          description: Bad request - invalid input parameters or files
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Payload too large - file size exceeds limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    GenerateTextRequest:
+      type: object
+      required:
+        - prompt
+        - targetLang
+      properties:
+        prompt:
+          type: string
+          description: Text prompt for generating flashcard content
+          example: "HSK2向けに『替・觉得・认为』。各語義ごとに短義＋例文を。"
+        targetLang:
+          type: string
+          description: Target language code (ISO 639-1)
+          example: "zh-CN"
+          enum:
+            - zh-CN
+            - zh-TW
+            - ja-JP
+            - ko-KR
+            - en-US
+            - es-ES
+            - fr-FR
+            - de-DE
+        withTTS:
+          type: boolean
+          description: Whether to generate text-to-speech audio
+          default: false
+        maxTerms:
+          type: integer
+          description: Maximum number of terms to generate
+          minimum: 1
+          maximum: 50
+          default: 10
+        maxMeaningsPerTerm:
+          type: integer
+          description: Maximum number of meanings per term
+          minimum: 1
+          maximum: 10
+          default: 3
+
+    GenerateMediaRequest:
+      type: object
+      required:
+        - targetLang
+      properties:
+        prompt:
+          type: string
+          description: Optional text prompt for generating flashcard content
+          example: "Generate vocabulary from these images"
+        targetLang:
+          type: string
+          description: Target language code (ISO 639-1)
+          example: "zh-CN"
+          enum:
+            - zh-CN
+            - zh-TW
+            - ja-JP
+            - ko-KR
+            - en-US
+            - es-ES
+            - fr-FR
+            - de-DE
+        withTTS:
+          type: boolean
+          description: Whether to generate text-to-speech audio
+          default: false
+        maxTerms:
+          type: integer
+          description: Maximum number of terms to generate
+          minimum: 1
+          maximum: 50
+          default: 10
+        maxMeaningsPerTerm:
+          type: integer
+          description: Maximum number of meanings per term
+          minimum: 1
+          maximum: 10
+          default: 3
+        images:
+          type: array
+          items:
+            type: string
+            format: binary
+          description: Array of image files (1 to 10 files supported)
+          minItems: 1
+          maxItems: 10
+
+    GenerateResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FlashcardItem'
+          description: Generated flashcard items
+
+    FlashcardItem:
+      type: object
+      required:
+        - term
+        - generated
+      properties:
+        term:
+          type: string
+          description: The vocabulary term
+          example: "替"
+        generated:
+          type: string
+          description: Generated content in markdown format including pronunciation, meanings, and examples
+          example: "### 替\\n- 読み: tì\\n- 品詞: 動詞\\n\\n1) …の代わりにする\\n   - 例文: 他替我参加了会议。\\n   - 訳: 彼は私の代わりに会議に参加しました。"
+        audio:
+          type: array
+          items:
+            $ref: '#/components/schemas/AudioItem'
+          description: Audio files for different meanings (if withTTS is true)
+
+    AudioItem:
+      type: object
+      required:
+        - meaningIndex
+        - variant
+        - filename
+        - ext
+        - base64
+      properties:
+        meaningIndex:
+          type: integer
+          description: Index of the meaning this audio corresponds to
+          example: 1
+        variant:
+          type: string
+          description: Audio variant type
+          enum:
+            - normal
+            - slow
+          example: "normal"
+        filename:
+          type: string
+          description: Generated filename for the audio
+          example: "ti_sense1_norm.mp3"
+        ext:
+          type: string
+          description: File extension
+          enum:
+            - mp3
+            - wav
+          example: "mp3"
+        base64:
+          type: string
+          description: Base64 encoded audio data
+          example: "BASE64_MP3_NORMAL"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type
+          example: "validation_error"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "The prompt field is required"
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

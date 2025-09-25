@@ -1,0 +1,28 @@
+# Lefthook configuration for AnkiAI Backend
+# Runs code formatting and linting before commits
+
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.py"
+      run: black app/ && isort app/
+      stage_fixed: true
+
+    lint:
+      glob: "*.py"
+      run: flake8 app/
+
+    type-check:
+      glob: "*.py"
+      run: mypy app/
+
+pre-push:
+  commands:
+    prevent-main:
+      run: |
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        if [ "$branch" = "main" ]; then
+          echo "Direct push to main branch is not allowed"
+          exit 1
+        fi

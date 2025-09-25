@@ -1,136 +1,136 @@
 version: '3'
 
-vars:
-  DOCKER_COMPOSE_FILE: docker-compose.yml
-  DB_CONTAINER: backend-db-1
-  BACKEND_CONTAINER: backend-backend-1
-
 tasks:
-  # Setup and Installation
+  # Setup
   setup:
-    desc: "Initial project setup"
+    desc: "Initial project setup with pip"
     cmds:
-      - echo "Setting up AnkiAI Backend..."
       - task: install-deps
       - task: env-setup
       - task: generate-api
-      - echo "Setup complete! Run 'task dev' to start development."
+      - task: hooks-install
+      - echo "Setup complete! Run 'task dev' to start."
+
+  uv-setup:
+    desc: "Initial project setup with uv"
+    cmds:
+      - task: install-deps-uv
+      - task: env-setup
+      - task: generate-api
+      - task: hooks-install
+      - echo "Setup complete! Run 'task dev-uv' to start with uv."
 
   generate-api:
-    desc: "Generate API code from OpenAPI schema"
+    desc: "Generate API code from OpenAPI spec"
     cmds:
-      - echo "Generating API code from OpenAPI schema..."
-      - docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli generate -i /local/openapi.yaml -g python-fastapi -o /local/generated --additional-properties=packageName=ankiai_generated
-      - echo "API code generation complete"
+      - docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli generate -i /local/openapi.yaml -g python-fastapi -o /local/generated --additional-properties=packageName=ankiai_generated,generateSourceCodeOnly=true
+      - rm -f generated/.flake8 generated/.gitignore generated/security_api.py generated/src/ankiai_generated/security_api.py generated/openapi.yaml generated/src/ankiai_generated/main.py 2>/dev/null || true
+      - rm -rf generated/src/ankiai_generated/impl generated/src/ankiai_generated/apis 2>/dev/null || true
 
   install-deps:
-    desc: "Install Python dependencies"
+    desc: "Install dependencies with pip"
     cmds:
       - pip install --upgrade pip
       - pip install -r requirements.txt
 
+  install-deps-uv:
+    desc: "Install dependencies with uv"
+    cmds:
+      - uv sync --extra dev
+
   env-setup:
-    desc: "Create environment configuration"
+    desc: "Create .env file"
     cmds:
       - cp .env.example .env
-      - echo "Please update .env file with your configuration"
     status:
       - test -f .env
 
-  # Development Commands
-  dev:
-    desc: "Start development environment"
+  # Development - Docker
+  up:
+    desc: "Start development server with Docker"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} up --build
+      - docker-compose up --build -d
 
-  dev-detached:
-    desc: "Start development environment in background"
+  up-fg:
+    desc: "Start development server with Docker in foreground"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} up -d --build
+      - docker-compose up --build
 
-  stop:
-    desc: "Stop all services"
+  down:
+    desc: "Stop Docker server"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} down
+      - docker-compose down
 
-  restart:
-    desc: "Restart all services"
+  destroy:
+    desc: "Stop Docker server and remove volumes"
     cmds:
-      - task: stop
-      - task: dev-detached
-
-
-  # Application Commands
-  shell:
-    desc: "Access backend container shell"
-    cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend /bin/bash
+      - docker-compose down -v
+      - docker system prune -f
 
   logs:
-    desc: "Show all service logs"
+    desc: "Show Docker logs"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} logs -f
+      - docker-compose logs -f
 
-  logs-backend:
-    desc: "Show backend service logs"
+  # Development - uv
+  uv-up:
+    desc: "Start development server with uv"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} logs -f backend
+      - PYTHONPATH="${PWD}/generated/src:$PYTHONPATH" uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+  # Legacy aliases for backward compatibility
+  dev:
+    desc: "Start development server with Docker (legacy alias)"
+    cmds:
+      - task: up
 
-  # Code Quality Commands
+  dev-uv:
+    desc: "Start development server with uv (legacy alias)"
+    cmds:
+      - task: uv-up
+
+  stop:
+    desc: "Stop server (legacy alias)"
+    cmds:
+      - task: down
+
+  # Code Quality
   format:
-    desc: "Format code with black and isort"
+    desc: "Format code"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend black app/
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend isort app/
+      - docker-compose exec backend black app/
+      - docker-compose exec backend isort app/
 
   lint:
-    desc: "Run linting with flake8 and mypy"
+    desc: "Check code quality"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend flake8 app/
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend mypy app/
+      - docker-compose exec backend flake8 app/
+      - docker-compose exec backend mypy app/
 
-  test:
-    desc: "Run tests with pytest"
+  # Git Hooks
+  hooks-install:
+    desc: "Install git hooks"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend pytest tests/ -v
+      - lefthook install
 
-  test-coverage:
-    desc: "Run tests with coverage report"
+  hooks-run:
+    desc: "Run pre-commit hooks manually"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} exec backend pytest tests/ --cov=app --cov-report=html
+      - lefthook run pre-commit
 
-  # Utility Commands
+  # Utilities
+  shell:
+    desc: "Access Docker container shell"
+    cmds:
+      - docker-compose exec backend /bin/bash
+
   clean:
-    desc: "Clean up Docker resources"
+    desc: "Clean Docker resources (legacy alias)"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} down -v --remove-orphans
-      - docker system prune -f
-      - docker volume prune -f
+      - task: destroy
 
-  status:
-    desc: "Show service status"
+  # Setup aliases
+  setup-docker:
+    desc: "Initial project setup with Docker (alias for setup)"
     cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} ps
-
-  build:
-    desc: "Build services without starting"
-    cmds:
-      - docker-compose -f {{.DOCKER_COMPOSE_FILE}} build
-
-  # Production Commands
-  prod-build:
-    desc: "Build production image"
-    cmds:
-      - docker build -t ankiai-backend:latest .
-
-  prod-run:
-    desc: "Run production container"
-    cmds:
-      - docker run -d --name ankiai-backend -p 8000:8000 ankiai-backend:latest
-
-  # Health Checks
-  health:
-    desc: "Check service health"
-    cmds:
-      - curl -f http://localhost:8000/health || echo "Backend service not responding"
+      - task: setup

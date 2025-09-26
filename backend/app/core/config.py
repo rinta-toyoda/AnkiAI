@@ -1,4 +1,5 @@
-from typing import List, Union
+from typing import List, Union, Optional
+from pathlib import Path
 
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,6 +12,7 @@ class Settings(BaseSettings):
         extra="ignore"  # Ignore extra environment variables
     )
 
+    # Basic API settings
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "AnkiAI"
     SERVER_NAME: str = "AnkiAI"
@@ -31,6 +33,50 @@ class Settings(BaseSettings):
     # File upload settings
     UPLOAD_FOLDER: str = "uploads"
     MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024  # 16MB max file size
+
+    # OpenAI settings
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4"
+    OPENAI_MAX_TOKENS: int = 2000
+    OPENAI_TEMPERATURE: float = 0.7
+
+    # Google Cloud Text-to-Speech settings
+    GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None
+    TTS_LANGUAGE_CODE: str = "en-US"
+    TTS_VOICE_NAME: str = "en-US-Neural2-F"
+    TTS_AUDIO_ENCODING: str = "MP3"
+
+    # Database settings (for future use)
+    DATABASE_URL: Optional[str] = None
+    DB_ECHO: bool = False
+
+    # Redis/Cache settings (for future use)
+    REDIS_URL: Optional[str] = None
+    CACHE_TTL: int = 3600  # 1 hour
+
+    # Content generation settings
+    MAX_TERMS_PER_REQUEST: int = 20
+    MAX_MEANINGS_PER_TERM: int = 5
+    MAX_IMAGES_PER_REQUEST: int = 10
+
+    # Rate limiting
+    RATE_LIMIT_PER_MINUTE: int = 60
+    RATE_LIMIT_BURST: int = 10
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"
+
+    # Security
+    SECRET_KEY: Optional[str] = None
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    @property
+    def upload_path(self) -> Path:
+        """Get upload directory as Path object."""
+        return Path(self.UPLOAD_FOLDER)
 
 
 settings = Settings()

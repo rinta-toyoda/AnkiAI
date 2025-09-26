@@ -13,21 +13,16 @@ dependencies = [
     # FastAPI and ASGI server
     "fastapi==0.104.1",
     "uvicorn[standard]==0.24.0",
-
     # File uploads
     "python-multipart==0.0.6",
-
     # Configuration & Environment
     "pydantic==2.5.0",
     "pydantic-settings==2.1.0",
     "python-dotenv==1.0.0",
-
     # Validation & Serialization
     "email-validator==2.1.0",
-
     # Monitoring & Logging
     "structlog==23.2.0",
-
     # Google Cloud Text-to-Speech
     "google-cloud-texttospeech==2.16.3",
 ]

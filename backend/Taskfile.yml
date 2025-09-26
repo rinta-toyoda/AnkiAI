@@ -21,11 +21,15 @@ tasks:
       - echo "Setup complete! Run 'task dev-uv' to start with uv."
 
   generate-api:
-    desc: "Generate API code from OpenAPI spec"
+    desc: "Generate API models from OpenAPI spec"
     cmds:
-      - docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli generate -i /local/openapi.yaml -g python-fastapi -o /local/generated --additional-properties=packageName=ankiai_generated,generateSourceCodeOnly=true
-      - rm -f generated/.flake8 generated/.gitignore generated/security_api.py generated/src/ankiai_generated/security_api.py generated/openapi.yaml generated/src/ankiai_generated/main.py 2>/dev/null || true
-      - rm -rf generated/src/ankiai_generated/impl generated/src/ankiai_generated/apis 2>/dev/null || true
+      - mkdir -p app/build
+      - docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli generate -i /local/openapi.yaml -g python-fastapi -o /local/app/build --additional-properties=packageName=ankiai_models,generateSourceCodeOnly=true,packageName=ankiai_models
+      - rm -f app/build/.flake8 app/build/.gitignore app/build/security_api.py app/build/src/ankiai_models/security_api.py app/build/openapi.yaml app/build/src/ankiai_models/main.py 2>/dev/null || true
+      - rm -rf app/build/src/ankiai_models/impl app/build/src/ankiai_models/apis app/build/tests app/build/Dockerfile app/build/README.md app/build/requirements.txt app/build/docker-compose.yaml app/build/pyproject.toml app/build/setup.cfg 2>/dev/null || true
+      - mkdir -p app/build/models
+      - cp -r app/build/src/ankiai_models/models/* app/build/models/ 2>/dev/null || true
+      - rm -rf app/build/src 2>/dev/null || true
 
   install-deps:
     desc: "Install dependencies with pip"
@@ -76,7 +80,7 @@ tasks:
   uv-up:
     desc: "Start development server with uv"
     cmds:
-      - PYTHONPATH="${PWD}/generated/src:$PYTHONPATH" uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # Legacy aliases for backward compatibility
   dev:

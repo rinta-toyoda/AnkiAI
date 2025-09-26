@@ -1,9 +1,0 @@
-src/ankiai_generated/impl/__init__.py
-src/ankiai_generated/main.py
-src/ankiai_generated/models/__init__.py
-src/ankiai_generated/models/audio_item.py
-src/ankiai_generated/models/error_response.py
-src/ankiai_generated/models/extra_models.py
-src/ankiai_generated/models/flashcard_item.py
-src/ankiai_generated/models/generate_response.py
-src/ankiai_generated/models/generate_text_request.py
